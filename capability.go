@@ -1,4 +1,4 @@
-package sqlboiler_mysql
+package mysql_sqlboiler
 
 import (
 	"github.com/hdget/common/types"
