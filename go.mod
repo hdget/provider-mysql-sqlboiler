@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	github.com/go-sql-driver/mysql v1.9.0
-	github.com/hdget/common v0.0.2
+	github.com/hdget/common v0.0.3
 	github.com/pkg/errors v0.9.1
 	github.com/volatiletech/sqlboiler/v4 v4.18.0
 	go.uber.org/fx v1.23.0
