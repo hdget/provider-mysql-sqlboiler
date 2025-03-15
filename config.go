@@ -1,4 +1,4 @@
-package pkg
+package mysql_sqlboiler
 
 import (
 	"github.com/hdget/common/intf"
