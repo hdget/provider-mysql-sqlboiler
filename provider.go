@@ -1,9 +1,10 @@
-package pkg
+package mysql_sqlboiler
 
 import (
+	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/hdget/common/intf"
+	"github.com/hdget/common/types"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 type mysqlProvider struct {
@@ -78,6 +79,10 @@ func (p *mysqlProvider) Init(args ...any) error {
 	}
 
 	return nil
+}
+
+func (p *mysqlProvider) GetCapability() types.Capability {
+	return Capability
 }
 
 func (p *mysqlProvider) My() intf.DbClient {
