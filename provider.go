@@ -4,12 +4,9 @@ import (
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/hdget/common/intf"
 	"github.com/hdget/common/types"
-	"github.com/pkg/errors"
 )
 
 type mysqlProvider struct {
-	logger    intf.LoggerProvider
-	config    *mysqlProviderConfig
 	defaultDb intf.DbClient
 	masterDb  intf.DbClient
 	slaveDbs  []intf.DbClient
@@ -17,68 +14,54 @@ type mysqlProvider struct {
 }
 
 func New(configProvider intf.ConfigProvider, logger intf.LoggerProvider) (intf.DbProvider, error) {
-	c, err := newConfig(configProvider)
+	config, err := newConfig(configProvider)
 	if err != nil {
 		return nil, err
 	}
 
-	provider := &mysqlProvider{
-		logger:   logger,
-		config:   c,
-		slaveDbs: make([]intf.DbClient, len(c.Slaves)),
+	p := &mysqlProvider{
+		slaveDbs: make([]intf.DbClient, len(config.Slaves)),
 		extraDbs: make(map[string]intf.DbClient),
 	}
 
-	err = provider.Init(logger, c)
-	if err != nil {
-		logger.Fatal("init mysql provider", "err", err)
-	}
-
-	return provider, nil
-}
-
-func (p *mysqlProvider) Init(args ...any) error {
-	var err error
-	if p.config.Default != nil {
-		p.defaultDb, err = newClient(p.config.Default)
+	if config.Default != nil {
+		p.defaultDb, err = newClient(config.Default)
 		if err != nil {
-			return errors.Wrap(err, "init mysql default connection")
+			logger.Fatal("init mysql default connection", "err", err)
 		}
 
 		// 设置boil的缺省db
 		boil.SetDB(p.defaultDb)
-		p.logger.Debug("init mysql default", "host", p.config.Default.Host)
+		logger.Debug("init mysql default", "host", config.Default.Host)
 	}
 
-	if p.config.Master != nil {
-		p.masterDb, err = newClient(p.config.Master)
+	if config.Master != nil {
+		p.masterDb, err = newClient(config.Master)
 		if err != nil {
-			return errors.Wrap(err, "init mysql master connection")
+			logger.Fatal("init mysql master connection", "err", err)
 		}
-		p.logger.Debug("init mysql master", "host", p.config.Master.Host)
+		logger.Debug("init mysql master", "host", config.Master.Host)
 	}
 
-	for i, slaveConf := range p.config.Slaves {
-		slaveClient, err := newClient(slaveConf)
+	for i, slaveConf := range config.Slaves {
+		p.slaveDbs[i], err = newClient(slaveConf)
 		if err != nil {
-			return errors.Wrapf(err, "init mysql slave connection, index: %d", i)
-		}
-
-		p.slaveDbs[i] = slaveClient
-		p.logger.Debug("init mysql slave", "index", i, "host", slaveConf.Host)
-	}
-
-	for _, itemConf := range p.config.Items {
-		itemClient, err := newClient(itemConf)
-		if err != nil {
-			return errors.Wrapf(err, "new mysql extra connection, name: %s", itemConf.Name)
+			logger.Fatal("init mysql slave connection", "slave", i, "err", err)
 		}
 
-		p.extraDbs[itemConf.Name] = itemClient
-		p.logger.Debug("init mysql extra", "name", itemConf.Name, "host", itemConf.Host)
+		logger.Debug("init mysql slave", "index", i, "host", slaveConf.Host)
 	}
 
-	return nil
+	for _, extraConf := range config.Items {
+		p.extraDbs[extraConf.Name], err = newClient(extraConf)
+		if err != nil {
+			logger.Fatal("new mysql extra connection", "name", extraConf.Name, "err", err)
+		}
+
+		logger.Debug("init mysql extra", "name", extraConf.Name, "host", extraConf.Host)
+	}
+
+	return p, nil
 }
 
 func (p *mysqlProvider) GetCapability() types.Capability {
